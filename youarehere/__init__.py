@@ -1,8 +1,28 @@
+"""
+# you are here 🌎
+
+Somehow, adding a new record to Route53 takes 100 lines of Python. So now it
+only takes one.
+
+```python
+>>> from youarehere import create_record
+>>> create_record("A", "foo.example.com", "4.4.4.4")
+```
+
+You can also easily point a record to the current machine:
+
+```python
+>>> from youarehere import point_record_to_here
+>>> point_record_to_here("foo.example.com")
+```
+"""
+
 from typing import List, Union
 
 import boto3
 import requests
 
+# Types of records that you can upload to Route53:
 VALID_RECORD_TYPES = [
     "A",
     "AAAA",
@@ -22,6 +42,13 @@ VALID_RECORD_TYPES = [
 def get_global_ip():
     """
     Get the current machine's global IP.
+
+    Arguments:
+        None
+
+    Returns:
+        str: The machine's global IP
+
     """
     r = requests.get(r"https://jsonip.com")
     return r.json()["ip"]
@@ -31,12 +58,21 @@ def generate_change_json(
     name: str, records: List[str], type: str, ttl: int = 300, comment: str = ""
 ):
     """
-    Example args:
+    Generate the AWS-format-friendly JSON/dict for this change request.
+
+    Arguments:
+        see create_record
+
+    Returns:
+        boto3.Response
+
+    Example:
         name: "a.example.com"
         type: "A"
         comment: "Create a new record"
         records: ["4.4.4.4"]
         ttl: 360
+
     """
     if type not in VALID_RECORD_TYPES:
         raise ValueError("Type {} is not valid.".format(type))
@@ -58,6 +94,21 @@ def generate_change_json(
 
 
 def guess_hosted_zone_id_for_name(record_name: str) -> str:
+    """
+    Guess the hosted zone given a record name.
+
+    This does some janky string-matching based upon the FQDN, so if you're
+    using this library to create a new record for a domain (rather than a
+    subdomain), this match will fail; you should get the hosted zone ID by
+    hand instead.
+
+    Arguments:
+        record_name (str): The record name to guess the HZ for
+
+    Returns:
+        str: A hosted-zone ID in the format "str/str"
+
+    """
     client = boto3.client("route53")
     # Get a list of all HZs:
     hosted_zones = client.list_hosted_zones_by_name().get("HostedZones", [])
@@ -69,7 +120,8 @@ def guess_hosted_zone_id_for_name(record_name: str) -> str:
             hosted_zone_id = zone["Id"]
     if hosted_zone_id is None:
         raise ValueError(
-            f"Could not find an appropriate hosted zone for new record {record_name}. Please specify one explicitly."
+            "Could not find an appropriate hosted zone for new "
+            + f"record {record_name}. Please specify one explicitly."
         )
     return hosted_zone_id
 
@@ -82,6 +134,28 @@ def create_record(
     comment: str = "",
     ttl: int = 300,
 ):
+    """
+    Create a new record in Route53.
+
+    Arguments:
+        record_type (`str`): The type of the record to add (e.g. `CNAME`).  For
+            an exhaustive list, see `youarehere.VALID_RECORD_TYPES`.
+        name (`str`): The DNS record name (e.g. `"foo.example.com"`)
+        destination (`str` `List[str]`): The destination IP or values (e.g.
+            `["4.4.4.4", "8.8.8.8"]`). If you provide a single string, it will
+            be treated as an Array[1].
+        hosted_zone_id (`str`: None): ID of the hosted zone to which to add
+            this record. Guess automatically by default, or you can use
+            `youarehere.guess_hosted_zone_id_for_name`.
+        comment (`str`: ""): An optional comment for the change request (e.g.
+            `"Baby's first DNS record!"`)
+        ttl (`int`: 300): The TTL for your record; defaults to 300 which is
+            probably too low.
+
+    Returns:
+        boto3.Response
+
+    """
     # fully-qualify-ify:
     name = name.rstrip(".") + "."
 
@@ -94,14 +168,15 @@ def create_record(
             hosted_zone_id = guess_hosted_zone_id_for_name(name)
         except:
             raise ValueError(
-                f"Could not find an appropriate hosted zone for new record {name}. Please specify one explicitly."
+                "Could not find an appropriate hosted zone for new "
+                + f"record {name}. Please specify one explicitly."
             )
 
     client = boto3.client("route53")
     response = client.change_resource_record_sets(
         HostedZoneId=hosted_zone_id,
         ChangeBatch=generate_change_json(
-            name=name, records=destination, type=record_type, ttl=ttl, comment=comment
+            name, destination, type=record_type, ttl=ttl, comment=comment
         ),
     )
     return response
@@ -110,15 +185,14 @@ def create_record(
 def point_record_to_here(record_name: str):
     """
     Create a new A record and point it at the current global IP.
+
+    Arguments:
+        record_name (str): The record name to assign to this machine
+
+    Returns:
+        boto3.Response
+
     """
     ip = get_global_ip()
     return create_record("A", record_name, [ip])
 
-
-"""
-Example:
-
->>> create_record("A", "foo.example.com", "4.4.4.4")
-
->>> point_record_to_here("foo.example.com")
-"""
