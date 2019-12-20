@@ -1,5 +1,7 @@
 # you are here 🌎
 
+![PyPI - License](https://img.shields.io/pypi/l/youarehere?style=for-the-badge) ![PyPI](https://img.shields.io/pypi/v/youarehere?style=for-the-badge) ![](https://img.shields.io/badge/PRETTY%20DOPE-👍-blue?style=for-the-badge)
+
 Somehow, adding a new record to Route53 takes 100 lines of Python. So now it only takes one.
 
 ```python
