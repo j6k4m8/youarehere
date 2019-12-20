@@ -35,3 +35,7 @@ $ python3 -c "point_record_to_here('my-pi.example.com')"
 | hosted_zone_id | `str`               | None    | ID of the hosted zone to which to add this record. Guess automatically by default, or use `youarehere.guess_hosted_zone_id_for_name`. |
 | comment        | `str`               | ""      | An optional comment for the change request (e.g. `"Baby's first DNS record!"`)                                                        |
 | ttl            | `int`               | 300     | The TTL for your record; defaults to 300 which is probably too low.                                                                   |
+
+---
+
+<small>Documentation auto-generated with [`docshund`](https://github.com/FitMango/docshund/), bork bork. 🐕</small>
