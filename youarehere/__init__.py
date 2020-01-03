@@ -21,6 +21,7 @@ from typing import List, Union
 
 import boto3
 import requests
+import click
 
 # Types of records that you can upload to Route53:
 VALID_RECORD_TYPES = [
@@ -37,6 +38,7 @@ VALID_RECORD_TYPES = [
     "SRV",
     "TXT",
 ]
+DEFAULT_TTL = 300
 
 
 def get_global_ip():
@@ -132,8 +134,9 @@ def create_record(
     destination: Union[str, List[str]],
     hosted_zone_id: str = None,
     comment: str = "",
-    ttl: int = 300,
-):
+    ttl: int = DEFAULT_TTL,
+    dry_run: bool = False,
+) -> "boto3.Response":
     """
     Create a new record in Route53.
 
@@ -151,6 +154,8 @@ def create_record(
             `"Baby's first DNS record!"`)
         ttl (`int`: 300): The TTL for your record; defaults to 300 which is
             probably too low.
+        dry_run (bool: False): If set to True, do not perform the write; just
+            return to the user the change request.
 
     Returns:
         boto3.Response
@@ -172,12 +177,15 @@ def create_record(
                 + f"record {name}. Please specify one explicitly."
             )
 
+    change_json = generate_change_json(
+        name, destination, type=record_type, ttl=ttl, comment=comment
+    )
+    if dry_run:
+        return {"hosted_zone_id": hosted_zone_id, "change": change_json}
+
     client = boto3.client("route53")
     response = client.change_resource_record_sets(
-        HostedZoneId=hosted_zone_id,
-        ChangeBatch=generate_change_json(
-            name, destination, type=record_type, ttl=ttl, comment=comment
-        ),
+        HostedZoneId=hosted_zone_id, ChangeBatch=change_json
     )
     return response
 
@@ -195,4 +203,56 @@ def point_record_to_here(record_name: str):
     """
     ip = get_global_ip()
     return create_record("A", record_name, [ip])
+
+
+@click.command()
+@click.argument(
+    "name",
+    # help="Record to add (e.g. 'test.example.com')"
+)
+@click.argument(
+    "destination",
+    required=False,
+    default=None,
+    #help="IP destination. Defaults to the current global IP if none is provided.",
+)
+@click.option(
+    "--type",
+    type=click.Choice(VALID_RECORD_TYPES),
+    default="A",
+    help="The type of the record to add.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Print and quit without making changes.",
+)
+@click.option(
+    "--ttl", type = click.INT, default = DEFAULT_TTL,
+     help="The TTL for the new record."
+)
+def cli(name, destination, type, dry_run):
+    """
+    Examples:
+
+    Point 'test.example.com' to the current machine:
+
+        $ youarehere test.example.com
+
+    Point 'test.example.com' to the IP 93.184.216.34
+
+        $ youarehere test.example.com 93.184.216.34
+
+    Point 'test.example.com' to a set of IPs in descending order,
+    with a TTL of 6000 seconds.
+
+        $ youarehere test.example.com 93.184.216.34,93.184.216.35 --ttl 6000
+    """
+
+    if destination is None:
+        destination = get_global_ip()
+    if len(destination.split(",")) > 1:
+        destination = [a.strip() for a in destination.split(",")]
+    create_record(type, name, destination, dry_run=dry_run)
 
