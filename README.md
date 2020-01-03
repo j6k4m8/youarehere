@@ -39,3 +39,33 @@ $ python3 -c "point_record_to_here('my-pi.example.com')"
 ---
 
 <small>Documentation auto-generated with [`docshund`](https://github.com/FitMango/docshund/), bork bork. 🐕</small>
+
+
+## CLI Usage
+
+Examples:
+
+Point 'test.example.com' to the current machine:
+
+    $ youarehere test.example.com
+
+Point 'test.example.com' to the IP 93.184.216.34
+
+    $ youarehere test.example.com 93.184.216.34
+
+Point 'test.example.com' to a set of IPs in descending order,
+with a TTL of 6000 seconds.
+
+    $ youarehere test.example.com 93.184.216.34,93.184.216.35 --ttl 6000
+
+
+| Argument    | Description                                 |
+| ----------- | ------------------------------------------- |
+| name        | Record to add (e.g. "test.example.com")     |
+| destination | IP destination. Default: Current global IP. |
+
+| Flag      | Description                                   |
+| --------- | --------------------------------------------- |
+| --type    | (A) The type of record to add                 |
+| --ttl     | (300) The TTL of the new DNS record           |
+| --dry-run | (False) Print and quit without making changes |
