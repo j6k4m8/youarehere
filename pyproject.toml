@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "youarehere"
-version = "0.2.0"
+version = "1.0.0"
 description = "Route53 DNS utility"
 readme = "README.md"
 homepage = "https://github.com/j6k4m8/youarehere"
