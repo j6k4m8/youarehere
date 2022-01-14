@@ -232,7 +232,7 @@ def point_record_to_here(record_name: str):
     "--ttl", type = click.INT, default = DEFAULT_TTL,
      help="The TTL for the new record."
 )
-def cli(name, destination, type, dry_run):
+def cli(name, destination, type, dry_run, ttl):
     """
     Examples:
 
@@ -254,5 +254,5 @@ def cli(name, destination, type, dry_run):
         destination = get_global_ip()
     if len(destination.split(",")) > 1:
         destination = [a.strip() for a in destination.split(",")]
-    create_record(type, name, destination, dry_run=dry_run)
+    create_record(type, name, destination, dry_run=dry_run, ttl=ttl)
 
