@@ -23,6 +23,8 @@ import boto3
 import requests
 import click
 
+__version__ = "1.0.1"
+
 # Types of records that you can upload to Route53:
 VALID_RECORD_TYPES = [
     "A",
