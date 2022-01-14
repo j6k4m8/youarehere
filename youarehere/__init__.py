@@ -95,7 +95,7 @@ def generate_change_json(
     }
 
 
-def guess_hosted_zone_id_for_name(record_name: str) -> str:
+def guess_hosted_zone_id_for_name(record_name: str, aws_profile: str = None) -> str:
     """
     Guess the hosted zone given a record name.
 
@@ -111,7 +111,9 @@ def guess_hosted_zone_id_for_name(record_name: str) -> str:
         str: A hosted-zone ID in the format "str/str"
 
     """
-    client = boto3.client("route53")
+    client = (boto3.Session(profile_name=aws_profile) if aws_profile else boto3).client(
+        "route53"
+    )
     # Get a list of all HZs:
     hosted_zones = client.list_hosted_zones_by_name().get("HostedZones", [])
 
@@ -136,6 +138,7 @@ def create_record(
     comment: str = "",
     ttl: int = DEFAULT_TTL,
     dry_run: bool = False,
+    aws_profile: str = None,
 ) -> "boto3.Response":
     """
     Create a new record in Route53.
@@ -156,6 +159,7 @@ def create_record(
             probably too low.
         dry_run (bool: False): If set to True, do not perform the write; just
             return to the user the change request.
+        aws_profile (str: None): If provided, the AWS profile name to use.
 
     Returns:
         boto3.Response
@@ -170,7 +174,9 @@ def create_record(
 
     if hosted_zone_id is None:
         try:
-            hosted_zone_id = guess_hosted_zone_id_for_name(name)
+            hosted_zone_id = guess_hosted_zone_id_for_name(
+                name, aws_profile=aws_profile
+            )
         except:
             raise ValueError(
                 "Could not find an appropriate hosted zone for new "
@@ -183,7 +189,9 @@ def create_record(
     if dry_run:
         return {"hosted_zone_id": hosted_zone_id, "change": change_json}
 
-    client = boto3.client("route53")
+    client = (boto3.Session(profile_name=aws_profile) if aws_profile else boto3).client(
+        "route53"
+    )
     response = client.change_resource_record_sets(
         HostedZoneId=hosted_zone_id, ChangeBatch=change_json
     )
@@ -214,7 +222,7 @@ def point_record_to_here(record_name: str):
     "destination",
     required=False,
     default=None,
-    #help="IP destination. Defaults to the current global IP if none is provided.",
+    # help="IP destination. Defaults to the current global IP if none is provided.",
 )
 @click.option(
     "--type",
@@ -229,10 +237,16 @@ def point_record_to_here(record_name: str):
     help="Print and quit without making changes.",
 )
 @click.option(
-    "--ttl", type = click.INT, default = DEFAULT_TTL,
-     help="The TTL for the new record."
+    "--ttl", type=click.INT, default=DEFAULT_TTL, help="The TTL for the new record."
 )
-def cli(name, destination, type, dry_run, ttl):
+@click.option(
+    "--aws_profile",
+    type=click.STRING,
+    required=False,
+    default=None,
+    help="If provided, the AWS profile to use to access Route53.",
+)
+def cli(name, destination, type, dry_run, ttl, aws_profile):
     """
     Examples:
 
@@ -254,5 +268,11 @@ def cli(name, destination, type, dry_run, ttl):
         destination = get_global_ip()
     if len(destination.split(",")) > 1:
         destination = [a.strip() for a in destination.split(",")]
-    create_record(type, name, destination, dry_run=dry_run, ttl=ttl)
-
+    create_record(
+        type,
+        name,
+        destination,
+        dry_run=dry_run,
+        ttl=ttl,
+        aws_profile=aws_profile,
+    )
